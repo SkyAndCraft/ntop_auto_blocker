@@ -1,8 +1,7 @@
 #!/bin/bash
 set -e
 
-mkdir -p ntop_auto_blocker/scripts
-cd ntop_auto_blocker
+mkdir -p scripts
 
 echo "[+] Création de block_ip.sh"
 cat > scripts/block_ip.sh <<'EOF'
