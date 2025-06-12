@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  ntop_blocker:
+    build: .
+    container_name: ntop_blocker
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./block_ip.sh:/app/block_ip.sh
+    cap_add:
+      - NET_ADMIN
