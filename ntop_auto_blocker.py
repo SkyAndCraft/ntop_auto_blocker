@@ -28,8 +28,8 @@ init_blocked_ips_from_iptables()
 NTOPNG_URL = os.getenv("NTOPNG_URL")
 API_KEY = os.getenv("NTOPNG_API_KEY")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 30))
-BLOCK_SCRIPT = os.getenv("BLOCK_SCRIPT", "/app/scripts/block_ip.sh")
-UNBLOCK_SCRIPT = os.getenv("UNBLOCK_SCRIPT", "/app/scripts/unblock_ip.sh")
+BLOCK_SCRIPT = os.getenv("BLOCK_SCRIPT", "/opt/skyfirewall/ntop_auto_blocker/scripts/block_ip.sh")
+UNBLOCK_SCRIPT = os.getenv("UNBLOCK_SCRIPT", "/opt/skyfirewall/ntop_auto_blocker/scripts/unblock_ip.sh")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
