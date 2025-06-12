@@ -59,6 +59,7 @@ import threading
 
 # Load .env variables
 load_dotenv()
+blocked_ips = set()
 
 def init_blocked_ips_from_iptables():
     global blocked_ips
@@ -81,7 +82,6 @@ UNBLOCK_SCRIPT = os.getenv("UNBLOCK_SCRIPT", "/app/scripts/unblock_ip.sh")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
-blocked_ips = set()
 
 # Webhook notifier
 def send_webhook(ip, event):
