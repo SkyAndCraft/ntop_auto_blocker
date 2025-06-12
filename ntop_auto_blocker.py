@@ -12,6 +12,8 @@ NTOPNG_URL = os.getenv("NTOPNG_URL")
 API_KEY = os.getenv("NTOPNG_API_KEY")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 30))
 BLOCK_SCRIPT = os.getenv("BLOCK_SCRIPT", "/app/block_ip.sh")
+UNBLOCK_SCRIPT = os.getenv("UNBLOCK_SCRIPT", "/app/unblock_ip.sh")
+
 
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}"
