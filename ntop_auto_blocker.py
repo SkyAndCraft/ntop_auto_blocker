@@ -117,3 +117,9 @@ def manual_unban():
         return jsonify({"error": f"Impossible de débloquer l'IP {ip}"}), 500
 
 
+@app.route("/ban-list", methods=["GET"])
+def get_ban_list():
+    return jsonify({
+        "banned_ips": list(blocked_ips),
+        "total": len(blocked_ips)
+    }), 200
