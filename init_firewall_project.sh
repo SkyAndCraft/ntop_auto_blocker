@@ -199,14 +199,14 @@ echo "[+] Création du service systemd skyfirewall"
 
 sudo tee /etc/systemd/system/skyfirewall.service > /dev/null <<EOF
 [Unit]
-Description=Pare-feu ntop_auto_blocker au démarrage
+Description=Pare-feu ntop_auto_blocker via Docker Compose
 After=network.target docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=$(pwd)
-ExecStart=/usr/bin/docker-compose up -d
-ExecStop=/usr/bin/docker-compose down
+WorkingDirectory=/opt/ntop_auto_blocker
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
 RemainAfterExit=true
 
 [Install]
