@@ -68,7 +68,7 @@ def init_blocked_ips_from_iptables():
         if "DROP" in line:
             parts = line.split()
             if len(parts) >= 5:
-                ip = parts[4]
+                ip = parts[3]
                 blocked_ips.add(ip)
                 
 # Juste après load_dotenv() :
