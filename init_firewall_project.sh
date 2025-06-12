@@ -2,11 +2,18 @@
 set -e
 
 INSTALL_DIR="/opt/skyfirewall/ntop_auto_blocker"
-echo "[+] Création du dossier $INSTALL_DIR"
+
+echo "🚀 Installation de SkyFirewall natif"
+
+echo "[+] Installation des paquets système requis..."
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv iptables
+
+echo "[+] Création de l’arborescence dans $INSTALL_DIR"
 sudo mkdir -p "$INSTALL_DIR/scripts"
 cd "$INSTALL_DIR"
 
-echo "[+] Création de block_ip.sh"
+echo "[+] Création des scripts block_ip.sh / unblock_ip.sh"
 sudo tee scripts/block_ip.sh > /dev/null <<'EOF'
 #!/bin/bash
 IP="$1"
@@ -14,7 +21,6 @@ iptables -C INPUT -s "$IP" -j DROP 2>/dev/null || iptables -I INPUT 1 -s "$IP" -
 echo "[✓] IP $IP bloquée"
 EOF
 
-echo "[+] Création de unblock_ip.sh"
 sudo tee scripts/unblock_ip.sh > /dev/null <<'EOF'
 #!/bin/bash
 IP="$1"
@@ -23,18 +29,18 @@ EOF
 
 sudo chmod +x scripts/*.sh
 
-echo "[+] Création du requirements.txt"
+echo "[+] Création du fichier requirements.txt"
 cat > requirements.txt <<EOF
-requests
-schedule
-python-dotenv
 flask
+requests
+python-dotenv
+schedule
 EOF
 
 echo "[+] Création du .env.example"
 cat > .env.example <<EOF
 NTOPNG_URL=http://192.168.1.42:3000
-NTOPNG_API_KEY=<ta_clé_api>
+NTOPNG_API_KEY=your_api_key_here
 POLL_INTERVAL=30
 BLOCK_SCRIPT=$INSTALL_DIR/scripts/block_ip.sh
 UNBLOCK_SCRIPT=$INSTALL_DIR/scripts/unblock_ip.sh
@@ -42,7 +48,6 @@ WEBHOOK_URL=https://ton.webhook.com/ban
 EOF
 
 echo "[+] Création de ntop_auto_blocker.py"
-
 cat > ntop_auto_blocker.py <<'EOF'
 import os
 import time
@@ -170,30 +175,34 @@ if __name__ == "__main__":
         time.sleep(1)
 EOF
 
-echo "[+] Installation des dépendances Python"
-sudo apt update && sudo apt install -y python3-pip iptables
-pip3 install --user -r requirements.txt
+echo "[+] Création d’un environnement virtuel"
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+deactivate
 
-echo "[+] Création du service systemd skyfirewall"
+echo "[+] Création du service systemd"
 sudo tee /etc/systemd/system/skyfirewall.service > /dev/null <<EOF
 [Unit]
-Description=Pare-feu ntop_auto_blocker (hors conteneur)
+Description=Pare-feu Sky natif sans conteneur
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=$INSTALL_DIR
-ExecStart=/usr/bin/python3 ntop_auto_blocker.py
+ExecStart=$INSTALL_DIR/venv/bin/python ntop_auto_blocker.py
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-echo "[+] Activation du service systemd"
+echo "[+] Activation du service"
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl enable skyfirewall
 sudo systemctl start skyfirewall
 
-echo "[✓] Pare-feu déployé en natif et actif 🎉"
+echo "✅ SkyFirewall déployé avec succès sans conteneur 🎉"
+echo "→ Logs : sudo journalctl -u skyfirewall -f"
