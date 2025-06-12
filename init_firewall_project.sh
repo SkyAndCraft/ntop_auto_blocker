@@ -178,8 +178,8 @@ EOF
 echo "[+] Création d’un environnement virtuel"
 python3 -m venv venv
 source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+./venv/bin/pip install --upgrade pip
+./venv/bin/pip install -r requirements.txt
 deactivate
 
 echo "[+] Création du service systemd"
