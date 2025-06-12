@@ -43,10 +43,27 @@ def block_ip(ip):
         result = call([BLOCK_SCRIPT, ip])
         if result == 0:
             print(f"[✓] IP {ip} bloquée avec succès")
+            blocked_ips.add(ip)
+            send_webhook(ip)
         else:
             print(f"[x] Échec du blocage de l'IP {ip}")
     except Exception as e:
         print(f"[Erreur] Échec du blocage : {e}")
+
+def send_webhook(ip):
+    webhook_url = os.getenv("https://discord.com/api/webhooks/1382689016721440839/mphXketY97H4VuPkSqlzzyRJnzXkxMx8sYrYhDqI5TnwRLWdHwAaqCT67M-9er62UTnt")
+    if webhook_url:
+        try:
+            payload = {
+                "ip": ip,
+                "event": "IP_BLOCKED",
+                "timestamp": int(time.time())
+            }
+            requests.post(webhook_url, json=payload, timeout=5)
+            print(f"[→] Webhook envoyé pour l’IP {ip}")
+        except Exception as e:
+            print(f"[!] Échec de l’envoi du webhook : {e}")
+
 
 # Planification du job
 schedule.every(POLL_INTERVAL).seconds.do(fetch_suspicious_hosts)
