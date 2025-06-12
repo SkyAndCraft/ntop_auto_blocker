@@ -1,5 +1,6 @@
 FROM python:3.12-slim
-WORKDIR /app
+RUN mkdir -p /app
+COPY block_ip.sh /app/block_ip.sh
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
