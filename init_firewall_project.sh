@@ -196,4 +196,28 @@ if __name__ == "__main__":
         time.sleep(1)
 EOF
 
-echo "[✓] Projet prêt dans ./ntop_auto_blocker 🎉"
+echo "[+] Création du service systemd skyfirewall"
+
+sudo tee /etc/systemd/system/skyfirewall.service > /dev/null <<EOF
+[Unit]
+Description=Pare-feu ntop_auto_blocker au démarrage
+After=network.target docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=$(pwd)
+ExecStart=/usr/bin/docker-compose up -d
+ExecStop=/usr/bin/docker-compose down
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "[+] Activation du service systemd"
+sudo systemctl daemon-reexec
+sudo systemctl enable skyfirewall.service
+echo "[✓] Service activé. Il démarrera automatiquement au prochain reboot ! 🔒"
+sudo systemctl start skyfirewall
+
+echo "[✓] Firewall installé et prêt à l'emploie 🎉"
