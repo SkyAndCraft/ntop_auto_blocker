@@ -8,6 +8,6 @@ services:
     env_file:
       - .env
     volumes:
-      - ./block_ip.sh:/app/block_ip.sh
+      - ./scripts:/app/scripts
     cap_add:
       - NET_ADMIN
