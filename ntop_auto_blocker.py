@@ -51,7 +51,7 @@ def block_ip(ip):
         print(f"[Erreur] Échec du blocage : {e}")
 
 def send_webhook(ip):
-    webhook_url = os.getenv("https://discord.com/api/webhooks/1382689016721440839/mphXketY97H4VuPkSqlzzyRJnzXkxMx8sYrYhDqI5TnwRLWdHwAaqCT67M-9er62UTnt")
+    webhook_url = os.getenv("WEBHOOK_URL")
     if webhook_url:
         try:
             payload = {
