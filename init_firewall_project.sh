@@ -6,8 +6,6 @@ INSTALL_DIR="/opt/skyfirewall/ntop_auto_blocker"
 echo "🚀 Installation de SkyFirewall natif"
 
 echo "[+] Installation des paquets système requis..."
-sudo apt update
-sudo apt install -y python3 python3-pip python3-venv iptables
 
 echo "[+] Création de l’arborescence dans $INSTALL_DIR"
 sudo mkdir -p "$INSTALL_DIR/scripts"
