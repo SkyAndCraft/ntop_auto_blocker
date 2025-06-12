@@ -1,26 +1,27 @@
 #!/bin/bash
 set -e
 
-mkdir -p ntop_auto_blocker/scripts
-cd ntop_auto_blocker
+INSTALL_DIR="/opt/skyfirewall/ntop_auto_blocker"
+echo "[+] Création du dossier $INSTALL_DIR"
+sudo mkdir -p "$INSTALL_DIR/scripts"
+cd "$INSTALL_DIR"
 
 echo "[+] Création de block_ip.sh"
-cat > scripts/block_ip.sh <<'EOF'
+sudo tee scripts/block_ip.sh > /dev/null <<'EOF'
 #!/bin/bash
-IP=$1
-iptables -A INPUT -s $IP -j DROP
-echo "IP $IP bloquée"
+IP="$1"
+iptables -C INPUT -s "$IP" -j DROP 2>/dev/null || iptables -I INPUT 1 -s "$IP" -j DROP
+echo "[✓] IP $IP bloquée"
 EOF
 
 echo "[+] Création de unblock_ip.sh"
-cat > scripts/unblock_ip.sh <<'EOF'
+sudo tee scripts/unblock_ip.sh > /dev/null <<'EOF'
 #!/bin/bash
-IP=$1
-iptables -D INPUT -s $IP -j DROP
-echo "IP $IP débloquée"
+IP="$1"
+iptables -D INPUT -s "$IP" -j DROP 2>/dev/null && echo "[✓] IP $IP débloquée"
 EOF
 
-chmod +x scripts/*.sh
+sudo chmod +x scripts/*.sh
 
 echo "[+] Création du requirements.txt"
 cat > requirements.txt <<EOF
@@ -35,40 +36,13 @@ cat > .env.example <<EOF
 NTOPNG_URL=http://192.168.1.42:3000
 NTOPNG_API_KEY=<ta_clé_api>
 POLL_INTERVAL=30
-BLOCK_SCRIPT=/app/scripts/block_ip.sh
-UNBLOCK_SCRIPT=/app/scripts/unblock_ip.sh
+BLOCK_SCRIPT=$INSTALL_DIR/scripts/block_ip.sh
+UNBLOCK_SCRIPT=$INSTALL_DIR/scripts/unblock_ip.sh
 WEBHOOK_URL=https://ton.webhook.com/ban
 EOF
 
-echo "[+] Création du Dockerfile"
-cat > Dockerfile <<EOF
-FROM python:3.12-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["python", "ntop_auto_blocker.py"]
-EOF
-
-echo "[+] Création du docker-compose.yml"
-cat > docker-compose.yml <<EOF
-version: "3.9"
-services:
-  ntop_blocker:
-    build: .
-    container_name: ntop_blocker
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
-    env_file:
-      - .env
-    volumes:
-      - ./scripts:/app/scripts
-    cap_add:
-      - NET_ADMIN
-EOF
-
 echo "[+] Création de ntop_auto_blocker.py"
+
 cat > ntop_auto_blocker.py <<'EOF'
 import os
 import time
@@ -196,19 +170,21 @@ if __name__ == "__main__":
         time.sleep(1)
 EOF
 
-echo "[+] Création du service systemd skyfirewall"
+echo "[+] Installation des dépendances Python"
+sudo apt update && sudo apt install -y python3-pip iptables
+pip3 install --user -r requirements.txt
 
+echo "[+] Création du service systemd skyfirewall"
 sudo tee /etc/systemd/system/skyfirewall.service > /dev/null <<EOF
 [Unit]
-Description=Pare-feu ntop_auto_blocker via Docker Compose
-After=network.target docker.service
+Description=Pare-feu ntop_auto_blocker (hors conteneur)
+After=network.target
 
 [Service]
-Type=oneshot
-WorkingDirectory=/opt/skyfirewall/ntop_auto_blocker
-ExecStart=/usr/bin/docker compose up -d
-ExecStop=/usr/bin/docker compose down
-RemainAfterExit=true
+Type=simple
+WorkingDirectory=$INSTALL_DIR
+ExecStart=/usr/bin/python3 ntop_auto_blocker.py
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
@@ -216,8 +192,8 @@ EOF
 
 echo "[+] Activation du service systemd"
 sudo systemctl daemon-reexec
-sudo systemctl enable skyfirewall.service
-echo "[✓] Service activé. Il démarrera automatiquement au prochain reboot ! 🔒"
+sudo systemctl daemon-reload
+sudo systemctl enable skyfirewall
 sudo systemctl start skyfirewall
 
-echo "[✓] Firewall installé et prêt à l'emploie 🎉"
+echo "[✓] Pare-feu déployé en natif et actif 🎉"
