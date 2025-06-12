@@ -72,3 +72,28 @@ print(f"🚦 Agent de blocage lancé (intervalle : {POLL_INTERVAL}s)")
 while True:
     schedule.run_pending()
     time.sleep(1)
+
+from flask import Flask, request, jsonify
+import threading
+
+app = Flask(__name__)
+
+@app.route("/ban", methods=["POST"])
+def manual_ban():
+    data = request.get_json()
+    ip = data.get("ip")
+    if not ip:
+        return jsonify({"error": "IP manquante"}), 400
+
+    if ip in blocked_ips:
+        return jsonify({"message": f"{ip} est déjà bloquée"}), 200
+
+    block_ip(ip)
+    return jsonify({"message": f"{ip} a été bloquée"}), 200
+
+# Lancer le serveur Flask dans un thread à part
+def start_api():
+    app.run(host="0.0.0.0", port=5000)
+
+threading.Thread(target=start_api).start()
+
