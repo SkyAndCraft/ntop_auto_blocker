@@ -97,3 +97,23 @@ def start_api():
 
 threading.Thread(target=start_api).start()
 
+@app.route("/unban", methods=["POST"])
+def manual_unban():
+    data = request.get_json()
+    ip = data.get("ip")
+    if not ip:
+        return jsonify({"error": "IP manquante"}), 400
+
+    if ip not in blocked_ips:
+        return jsonify({"message": f"{ip} n'est pas dans la liste des IP bloquées"}), 200
+
+    result = call(["/app/unblock_ip.sh", ip])
+    if result == 0:
+        blocked_ips.remove(ip)
+        print(f"[✓] IP {ip} débloquée avec succès")
+        return jsonify({"message": f"{ip} a été débloquée"}), 200
+    else:
+        print(f"[x] Échec du déblocage de l'IP {ip}")
+        return jsonify({"error": f"Impossible de débloquer l'IP {ip}"}), 500
+
+
