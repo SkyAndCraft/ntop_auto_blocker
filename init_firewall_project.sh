@@ -51,6 +51,7 @@ import os
 import time
 import requests
 import schedule
+import subprocess
 from dotenv import load_dotenv
 from subprocess import call
 from flask import Flask, request, jsonify
@@ -58,6 +59,19 @@ import threading
 
 # Load .env variables
 load_dotenv()
+
+def init_blocked_ips_from_iptables():
+    global blocked_ips
+    output = subprocess.check_output(["iptables", "-L", "INPUT", "-n"]).decode()
+    for line in output.splitlines():
+        if "DROP" in line:
+            parts = line.split()
+            if len(parts) >= 5:
+                ip = parts[4]
+                blocked_ips.add(ip)
+                
+# Juste après load_dotenv() :
+init_blocked_ips_from_iptables()
 
 NTOPNG_URL = os.getenv("NTOPNG_URL")
 API_KEY = os.getenv("NTOPNG_API_KEY")
