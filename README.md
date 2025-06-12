@@ -1,8 +1,8 @@
 # Comment l'installer ?
 ## 🧱 1. Créer un répertoire dédié pour la défense 🔐
 ```bash
-sudo mkdir -p /opt/skyfirewall/scripts
-cd /opt/skyfirewall/scripts
+sudo mkdir -p /opt/skyfirewall/
+cd /opt/skyfirewall/
 ```
 ## ✍️ 2. Télécharger le script ``init_firewall_project.sh``
 ```bash
