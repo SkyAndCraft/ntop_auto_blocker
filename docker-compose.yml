@@ -5,6 +5,8 @@ services:
     build: .
     container_name: ntop_blocker
     restart: unless-stopped
+    ports:
+      - "5000:5000"
     env_file:
       - .env
     volumes:
