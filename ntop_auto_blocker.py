@@ -4,124 +4,121 @@ import requests
 import schedule
 from dotenv import load_dotenv
 from subprocess import call
+from flask import Flask, request, jsonify
+import threading
 
-# Chargement des variables d'environnement
+# Load .env variables
 load_dotenv()
 
 NTOPNG_URL = os.getenv("NTOPNG_URL")
 API_KEY = os.getenv("NTOPNG_API_KEY")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 30))
-BLOCK_SCRIPT = os.getenv("BLOCK_SCRIPT", "/app/block_ip.sh")
-UNBLOCK_SCRIPT = os.getenv("UNBLOCK_SCRIPT", "/app/unblock_ip.sh")
+BLOCK_SCRIPT = os.getenv("BLOCK_SCRIPT", "/app/scripts/block_ip.sh")
+UNBLOCK_SCRIPT = os.getenv("UNBLOCK_SCRIPT", "/app/scripts/unblock_ip.sh")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-
-HEADERS = {
-    "Authorization": f"Bearer {API_KEY}"
-}
-
-# Historique des IP déjà bloquées
+HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 blocked_ips = set()
 
+# Webhook notifier
+def send_webhook(ip, event):
+    if not WEBHOOK_URL:
+        return
+    payload = {
+        "ip": ip,
+        "event": event,
+        "timestamp": int(time.time())
+    }
+    try:
+        requests.post(WEBHOOK_URL, json=payload, timeout=5)
+        print(f"[→] Webhook envoyé : {event} {ip}")
+    except Exception as e:
+        print(f"[!] Webhook échec : {e}")
+
+# Blocage d'une IP
+def block_ip(ip):
+    if ip in blocked_ips:
+        return
+    print(f"[>] Blocage de l'IP {ip}")
+    result = call([BLOCK_SCRIPT, ip])
+    if result == 0:
+        blocked_ips.add(ip)
+        print(f"[✓] IP {ip} bloquée")
+        send_webhook(ip, "IP_BLOCKED")
+    else:
+        print(f"[x] Échec du blocage de l'IP {ip}")
+
+# Déblocage d'une IP
+def unblock_ip(ip):
+    if ip not in blocked_ips:
+        return False
+    print(f"[>] Déblocage de l'IP {ip}")
+    result = call([UNBLOCK_SCRIPT, ip])
+    if result == 0:
+        blocked_ips.remove(ip)
+        print(f"[✓] IP {ip} débloquée")
+        send_webhook(ip, "IP_UNBLOCKED")
+        return True
+    else:
+        print(f"[x] Échec du déblocage")
+        return False
+
+# Requête à l'API ntopng
 def fetch_suspicious_hosts():
     try:
         url = f"{NTOPNG_URL}/lua/rest/v2/get/alerts/active"
         response = requests.get(url, headers=HEADERS, timeout=10)
         response.raise_for_status()
         alerts = response.json().get("alerts", [])
-        
         for alert in alerts:
             ip = alert.get("host")
             if ip and ip not in blocked_ips:
                 print(f"[!] IP suspecte détectée : {ip}")
                 block_ip(ip)
-                blocked_ips.add(ip)
-
     except Exception as e:
-        print(f"[Erreur] Impossible de récupérer les alertes : {e}")
+        print(f"[Erreur API] {e}")
 
-def block_ip(ip):
-    try:
-        print(f"[>] Blocage de l'IP {ip}")
-        result = call([BLOCK_SCRIPT, ip])
-        if result == 0:
-            print(f"[✓] IP {ip} bloquée avec succès")
-            blocked_ips.add(ip)
-            send_webhook(ip)
-        else:
-            print(f"[x] Échec du blocage de l'IP {ip}")
-    except Exception as e:
-        print(f"[Erreur] Échec du blocage : {e}")
-
-def send_webhook(ip):
-    webhook_url = os.getenv("WEBHOOK_URL")
-    if webhook_url:
-        try:
-            payload = {
-                "ip": ip,
-                "event": "IP_BLOCKED",
-                "timestamp": int(time.time())
-            }
-            requests.post(webhook_url, json=payload, timeout=5)
-            print(f"[→] Webhook envoyé pour l’IP {ip}")
-        except Exception as e:
-            print(f"[!] Échec de l’envoi du webhook : {e}")
-
-
-# Planification du job
+# Planification
 schedule.every(POLL_INTERVAL).seconds.do(fetch_suspicious_hosts)
 
-print(f"🚦 Agent de blocage lancé (intervalle : {POLL_INTERVAL}s)")
-while True:
-    schedule.run_pending()
-    time.sleep(1)
-
-from flask import Flask, request, jsonify
-import threading
-
+# Flask REST API
 app = Flask(__name__)
 
 @app.route("/ban", methods=["POST"])
-def manual_ban():
+def api_ban():
     data = request.get_json()
     ip = data.get("ip")
     if not ip:
         return jsonify({"error": "IP manquante"}), 400
-
-    if ip in blocked_ips:
-        return jsonify({"message": f"{ip} est déjà bloquée"}), 200
-
     block_ip(ip)
-    return jsonify({"message": f"{ip} a été bloquée"}), 200
-
-# Lancer le serveur Flask dans un thread à part
-def start_api():
-    app.run(host="0.0.0.0", port=5000)
-
-threading.Thread(target=start_api).start()
+    return jsonify({"message": f"{ip} bloquée"}), 200
 
 @app.route("/unban", methods=["POST"])
-def manual_unban():
+def api_unban():
     data = request.get_json()
     ip = data.get("ip")
     if not ip:
         return jsonify({"error": "IP manquante"}), 400
-
-    if ip not in blocked_ips:
-        return jsonify({"message": f"{ip} n'est pas dans la liste des IP bloquées"}), 200
-
-    result = call(["/app/unblock_ip.sh", ip])
-    if result == 0:
-        blocked_ips.remove(ip)
-        print(f"[✓] IP {ip} débloquée avec succès")
-        return jsonify({"message": f"{ip} a été débloquée"}), 200
+    success = unblock_ip(ip)
+    if success:
+        return jsonify({"message": f"{ip} débloquée"}), 200
     else:
-        print(f"[x] Échec du déblocage de l'IP {ip}")
-        return jsonify({"error": f"Impossible de débloquer l'IP {ip}"}), 500
-
+        return jsonify({"error": f"{ip} non débloquée"}), 500
 
 @app.route("/ban-list", methods=["GET"])
-def get_ban_list():
+def api_ban_list():
     return jsonify({
         "banned_ips": list(blocked_ips),
         "total": len(blocked_ips)
-    }), 200
+    })
+
+def start_flask():
+    app.run(host="0.0.0.0", port=5000)
+
+# Démarrage
+if __name__ == "__main__":
+    print("🚀 Script ntop_auto_blocker.py lancé")
+    threading.Thread(target=start_flask).start()
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
